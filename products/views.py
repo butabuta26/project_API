@@ -129,10 +129,6 @@ class CartViewSet(CreateModelMixin, ListModelMixin, GenericAPIView):
         queryset = self.queryset.filter(user=self.request.user)
         return queryset
 
-    # def perform_create(self, serializer):
-    #     cart = Cart.objects.get_or_create(user=self.request.user)
-    #     serializer.save(user=self.request.user, cart=cart)
-
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
