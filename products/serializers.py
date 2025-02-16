@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from products.models import Review, Product, Cart, ProductTag, FavoriteProduct
+from products.models import Review, Product, Cart, ProductTag, FavoriteProduct, ProductImage
 
-from users.models import User
+# from users.models import User
 
 class ReviewSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(write_only=True)
@@ -25,75 +25,36 @@ class ReviewSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         return Review.objects.create(product=product, user=user, **validated_data)
 
+class ProductTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductTag
+        fields = ['id', 'name']
 
 class ProductSerializer(serializers.ModelSerializer):
     reviews = ReviewSerializer(many=True, read_only=True)
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        source='tags',
+        queryset=ProductTag.objects.all(),
+        many=True,
+        write_only=True
+    )
+    tags = ProductTagSerializer(read_only=True, many=True)
 
     class Meta:
-        exclude = ['created_at', 'updated_at', 'tags'] 
+        exclude = ['created_at', 'updated_at'] 
         model = Product
-
-# class CartSerializer(serializers.ModelSerializer):
-#     products = ProductSerializer(many=True, read_only=True)
-#     product_ids = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), many=True)
+        
+    def create(self, validated_data):
+        tags=validated_data.pop('tags', [])
+        product=Product.objects.create(**validated_data)
+        product.tags.set(tags)
+        return product
     
-#     class Meta:
-#         model = Cart
-#         fields = ['user', 'products', 'product_ids']
-
-# #eseigi vamowmebt arsebobs tu ara produqti ofc
-#     def validate_product_ids(self, value):
-#         if not Product.objects.filter(id=value).exists():
-#             raise serializers.ValidationError("Invalid product_id. Product does not exist.")
-#         return value
-    
-#     #rom quantity aris dadebiti mteli rixcvi
-#     def validate_quantity(self, value):
-#         if value <= 0:
-#             raise serializers.ValidationError("Quantity must be a positive integer.")
-#         return value
-
-    
-
-class ProductTagSerializer(serializers.ModelSerializer):
-    products = ProductSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ProductTag
-        fields = ['id', 'name', 'products']
-
-
-    #aqac vamowmebt producti tu arsebobs
-    def validate_product_id(self, value):
-        if not Product.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Invalid product_id. Product does not exist.")
-        return value
-    
-    #tag name unikalurobas amowmebs
-    def validate_tag_name(self, value):
-        product_id = self.initial_data.get('product')
-        if ProductTag.objects.filter(product_id=product_id, tag_name=value).exists():
-            raise serializers.ValidationError("Tag name must be unique for this product.")
-        return value
-    
-# class FavoriteProductSerializer(serializers.ModelSerializer):
-#     products = ProductSerializer(many=True, read_only=True)
-
-#     class Meta:
-#         model = FavoriteProduct
-#         fields = ['id', 'user', 'products']
-
-#     #aqac vamowmebt producti tu arsebobs
-#     def validate_product_id(self, value):
-#         if not Product.objects.filter(id=value).exists():
-#             raise serializers.ValidationError("Invalid product_id. Product does not exist.")
-#         return value
-
-#     #rom user uewveli arsebobs
-#     def validate_user(self, value):
-#         if not User.objects.filter(id=value.id).exists():
-#             raise serializers.ValidationError("User  does not exist.")
-#         return value
+    def update(self, instance, validated_data):
+        tags = validated_data.pop('tags', None)
+        if tags is None:
+            instance.tags.set(tags)
+        return super().update(instance, validated_data)
 
 class FavoriteProductSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
@@ -144,4 +105,7 @@ class CartSerializer(serializers.ModelSerializer):
         
         return cart
     
-    
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image', 'product']
